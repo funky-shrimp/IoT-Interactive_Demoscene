@@ -3,16 +3,16 @@
 #include <Adafruit_ST7735.h>
 
 #include "Joystick.h"
-
+#include "ProjectionManager.h"
 #include "Cube.h"
 
 #define TFT_CS 10
-#define TFT_DC  9
+#define TFT_DC 9
 #define TFT_RST 8
 
 //https://barth-dev.de/online/rgb565-color-picker/
 //https://learn.adafruit.com/adafruit-gfx-graphics-library/coordinate-system-and-units
-#define OBJECT_COLOR 0x101F //BLUE in RGB565
+#define OBJECT_COLOR 0x101F  //BLUE in RGB565
 
 /* ------
     Screen
@@ -33,64 +33,59 @@ const int POINT_SIZE = 2;
 const int JOYSTICK_PINS[] = { 0, 1, 4 };  //Joystick (analog X, analog Y, digital BTN)
 Joystick joystick(JOYSTICK_PINS);         // Object creation
 jskValues joystickValues;                 // Structure for manipulating the input
+jskValues oldJoystickValues;
+bool hasJoystickChanged = false;
+
 
 /* ------
     SCREEN
    ------ 
 */
 const int FPS = 24;
-const float deltaTime = 1.0f/FPS;
+const float deltaTime = 1.0f / FPS;
+
+/* ------
+    Cube
+   ------ 
+*/
+PointScreen currentProjectedPoints[8];
+PointScreen previousPoints[8];  //OPTIMIZATION : storing previous point of the cube to redraw them
 
 /* ------
     Misc / To be deleted
    ------ 
 */
-Vertex dummyV;
-float deltaZ = 1;
-double angle = 0;
 
-/* ------
-    Optimisation
-   ------ 
-*/
-PointScreen previousPoints[8]; //storing previous point of the cube to redraw them
+float deltaZ = 1;   //for z translate
+double angleX = 0;  //for around Y axis
+double angleY = 0;  //for around X axis
+
 
 //Clear the screen
 void clear() {
   screen.fillScreen(ST77XX_BLACK);
 }
 
-void clearPoint(int x,int y){
+// OPTIMIZATION
+// clearPoint is used to clear the point from previous loop
+// so we don't have to clear the screen between each frame
+void clearPoint(int x, int y) {
   screen.fillRect(x - POINT_SIZE / 2, y - POINT_SIZE / 2, POINT_SIZE, POINT_SIZE, ST77XX_BLACK);
 }
-
 
 //Draw a bigger "pixel" to be easily seen by eye
 void point(PointScreen p) {
   screen.fillRect(p.x - POINT_SIZE / 2, p.y - POINT_SIZE / 2, POINT_SIZE, POINT_SIZE, ST77XX_WHITE);
 }
 
-//Adapt a 3d object coordinates to screen coordinates
-PointScreen getPointToScreenCoordinate(PointScreen pointToProject) {
-  PointScreen screenPt;
-
-  //Because the p coordinates are on -1 to 1 coordinate system.
-  // that's not the case in a screen coordinate
-  screenPt.x = (pointToProject.x + 1.0f) / 2.0f * cwidth;
-  screenPt.y = (1 - (pointToProject.y + 1.0f) / 2.0f) * cheight;
-
-  return screenPt;
+// OPTIMIZATION
+// Like clearPoint but for lines
+void clearLine(int x1, int y1, int x2, int y2) {
+  screen.drawLine(x1, y1, x2, y2, ST77XX_BLACK);
 }
 
-//Project 3d vertex to 2d
-PointScreen project(Vertex vertexToProject) {
-
-  PointScreen projectedVertex;
-
-  projectedVertex.x = vertexToProject.x/vertexToProject.z;
-  projectedVertex.y = vertexToProject.y/vertexToProject.z;
-
-  return projectedVertex;
+void line(int x1, int y1, int x2, int y2) {
+  screen.drawLine(x1, y1, x2, y2, ST77XX_WHITE);
 }
 
 void setup() {
@@ -99,69 +94,80 @@ void setup() {
 
   screen.initR(INITR_144GREENTAB);
   screen.setRotation(0);
-  screen.fillScreen(ST77XX_BLACK); //make the screen black
+  screen.fillScreen(ST77XX_BLACK);  //make the screen black
 
   cwidth = screen.width();
   cheight = screen.height();
 
-  Serial.println("Screen width : " + (String)cwidth + " | Screen height : " + (String)cheight);
-
-  dummyV.x = 0.5;
-  dummyV.y = 0;
-  dummyV.z = 1;
-
   //joystick.init();
-  
-}
-
-//Translate a vertex by in z axis
-Vertex translate_z(Vertex p, float dz){
-  p.z+=dz;
-  return p;
-}
-
-//Rotate along Y axis
-Vertex rotate_xz(Vertex p, float angle){
-  double c = cos(angle);
-  double s = sin(angle);
-
-  float oldX = p.x;
-  p.x = p.x*c-p.z*s;
-  p.z = oldX*s+p.z*c;
-
-  return p;
 }
 
 void loop() {
   //deltaZ+=1*deltaTime; //distance travelled += speed*timeEllapsed
-  angle += PI*deltaTime;
+  //angle += PI * deltaTime;
 
-  for(int i = 0; i < cubeVerticesNumber; i++){
-    //OPTIMIZATION : 
-    clearPoint(previousPoints[i].x,previousPoints[i].y);
+  joystickValues = joystick.getValue();
 
-    // Transform
-    Vertex transformedVertex = rotate_xz(cubeVertices[i], angle);
+  if (joystickValues.x == oldJoystickValues.x && joystickValues.y == oldJoystickValues.y) {
+    hasJoystickChanged = false;
+  } else {
+    hasJoystickChanged = true;
+  }
 
-    //Project vertex from 3d to 2d
-    // We add 1.5 to Z here to keep it visible and away from the camera
-    Vertex forProjection = {transformedVertex.x, transformedVertex.y, transformedVertex.z + 1.5f};
-    PointScreen projectedPoint = project(forProjection);
+  // Analog values are 0-1023. Center is ~512.
+  // We calculate the offset from the center and apply sensitivity.
+  float dx = (joystickValues.x - 512) / 512.0f;
+  float dy = (joystickValues.y - 512) / 512.0f;
 
-    //Convert to screen coordinates
-    PointScreen currentPos = getPointToScreenCoordinate(projectedPoint);
+  // Update angles based on stick position
+  angleY += dx * 0.05f;
+  angleX += dy * 0.05f;
 
-    //Draw the Vertex on screen
-    point(currentPos);
+  joystick.log();
 
-    //OPTIMIZATION
-    previousPoints[i] = currentPos;
+  // ERASE ENTIRE OLD FRAME
+  // We use the coordinates stored in previousPoints from the LAST frame
+  if (hasJoystickChanged) {
+    for (int i = 0; i < cubeEdgesNumber; i++) {
+      int start = cubeEdges[i].start;
+      int end = cubeEdges[i].end;
+
+      clearLine(previousPoints[start].x, previousPoints[start].y,
+                previousPoints[end].x, previousPoints[end].y);
+    }
+  }
+
+  if (hasJoystickChanged) {
+    //Loop and draw the cube vertices
+    for (int i = 0; i < cubeVerticesNumber; i++) {
+      Vertex v = cubeVertices[i];
+
+      // Apply dual-axis rotation
+      v = ProjectionManager::rotate_xz(v, angleY);  // Rotate around Y axis (horizontal stick movement)
+      v = ProjectionManager::rotate_yz(v, angleX);  // Rotate around X axis (vertical stick movement)
+
+      // Getting vertex coordinates for screen
+      currentProjectedPoints[i] = ProjectionManager::getVertexForScreen(v, cwidth, cheight);
+
+      //Draw the Vertex on screen
+      //point(currentProjectedPoints[i]);
+    }
+
+    //Loop and draw the edges
+    for (int i = 0; i < cubeEdgesNumber; i++) {
+      int start = cubeEdges[i].start;
+      int end = cubeEdges[i].end;
+
+      line(currentProjectedPoints[start].x, currentProjectedPoints[start].y,
+           currentProjectedPoints[end].x, currentProjectedPoints[end].y);
+    }
+
+    // Update memory for efficient erasing
+    for (int i = 0; i < cubeVerticesNumber; i++) {
+      previousPoints[i] = currentProjectedPoints[i];
+    }
   }
 
 
-  //point(getPointToScreenCoordinate(project(dummyV)));
-  //joystickValues = joystick.getValue();
-
-  //delay(1000/FPS);
-  delay(1000/FPS);
+  delay(1000 / FPS);
 }

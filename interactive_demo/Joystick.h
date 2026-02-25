@@ -15,7 +15,7 @@ private:
 
 public:
   Joystick(const int* pinsArray)
-    : pins(pinsArray) {}
+    : pins(pinsArray) {}  
 
   jskValues getValue() {
 
