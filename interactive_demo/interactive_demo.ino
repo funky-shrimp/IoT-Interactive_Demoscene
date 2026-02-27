@@ -6,9 +6,9 @@
 #include "ProjectionManager.h"
 #include "Cube.h"
 
-#define TFT_CS 10
-#define TFT_DC 9
-#define TFT_RST 8
+#define TFT_CS 10 //for screen
+#define TFT_DC 9  //for screen
+#define TFT_RST 8 //for screen
 
 //https://barth-dev.de/online/rgb565-color-picker/
 //https://learn.adafruit.com/adafruit-gfx-graphics-library/coordinate-system-and-units
@@ -18,23 +18,22 @@
     Screen
    ------ 
 */
-
 Adafruit_ST7735 screen(TFT_CS, TFT_DC, TFT_RST);
 
-int cwidth;  //c means canvas
+int cwidth;  //c means canvas / screen
 int cheight;
 
-const int POINT_SIZE = 2;
+const int POINT_SIZE = 2; //To draw a "pixel" based on a vertex position
 
 /* ------
     Joystick
    ------ 
 */
-const int JOYSTICK_PINS[] = { 0, 1, 4 };  //Joystick (analog X, analog Y, digital BTN)
+const int JOYSTICK_PINS[] = { 0, 1, 4 };  // Joystick (analog X, analog Y, digital BTN)
 Joystick joystick(JOYSTICK_PINS);         // Object creation
 jskValues joystickValues;                 // Structure for manipulating the input
-jskValues oldJoystickValues;
-bool hasJoystickChanged = false;
+bool hasJoystickChanged = false;          // OPTIMIZATION : we only draw the cube if the Joystick has a movement
+const int JOYSTICK_TOLERANCE = 20;        //Because a Joystick is not always perfectly centered
 
 
 /* ------
@@ -42,23 +41,20 @@ bool hasJoystickChanged = false;
    ------ 
 */
 const int FPS = 24;
-const float deltaTime = 1.0f / FPS;
+
 
 /* ------
-    Cube
+    Cube / 3D object
    ------ 
 */
 PointScreen currentProjectedPoints[8];
 PointScreen previousPoints[8];  //OPTIMIZATION : storing previous point of the cube to redraw them
 
-/* ------
-    Misc / To be deleted
-   ------ 
-*/
+const float ROTATION_SENSITIVITY = 0.3f;
 
-float deltaZ = 1;   //for z translate
 double angleX = 0;  //for around Y axis
 double angleY = 0;  //for around X axis
+
 
 
 //Clear the screen
@@ -89,8 +85,7 @@ void line(int x1, int y1, int x2, int y2) {
 }
 
 void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(9600);
+  Serial.begin(9600); //For Serial connection
 
   screen.initR(INITR_144GREENTAB);
   screen.setRotation(0);
@@ -99,55 +94,71 @@ void setup() {
   cwidth = screen.width();
   cheight = screen.height();
 
-  //joystick.init();
+  joystick.init();
 }
 
 void loop() {
-  //deltaZ+=1*deltaTime; //distance travelled += speed*timeEllapsed
-  //angle += PI * deltaTime;
-
-  joystickValues = joystick.getValue();
-
-  if (joystickValues.x == oldJoystickValues.x && joystickValues.y == oldJoystickValues.y) {
-    hasJoystickChanged = false;
-  } else {
-    hasJoystickChanged = true;
-  }
+  // to draw the cube on the first frame
+  // if joystick is "resting"
+  static bool firstFrame = true;
 
   // Analog values are 0-1023. Center is ~512.
+  joystickValues = joystick.getValue();
+
   // We calculate the offset from the center and apply sensitivity.
-  float dx = (joystickValues.x - 512) / 512.0f;
-  float dy = (joystickValues.y - 512) / 512.0f;
+  float dx = 0;
+  float dy = 0;
 
-  // Update angles based on stick position
-  angleY += dx * 0.05f;
-  angleX += dy * 0.05f;
+  // Check X-axis with tolerance, because a Joystick isn't perfectly centered
+  if (abs(joystickValues.x - 512) > JOYSTICK_TOLERANCE) {
+    // Map the value to a -1.0 to 1.0 range based on the x center
+    dx = (joystickValues.x - 512) / 512.0f;
+  }
 
-  joystick.log();
+  // Check Y-axis with tolerance
+  if (abs(joystickValues.y - 512) > JOYSTICK_TOLERANCE) {
+    dy = (joystickValues.y - 512) / 512.0f;
+  }
 
-  // ERASE ENTIRE OLD FRAME
-  // We use the coordinates stored in previousPoints from the LAST frame
+  //OPTIMIZATION to avoid redrawing the cube if not necessary.
+  if (dx != 0 || dy != 0 || firstFrame) {
+    hasJoystickChanged = true;
+    
+    // Only update angles if there is actual movement
+    angleY += dx * ROTATION_SENSITIVITY; //Joystick on joystick's X axis acts on Y axis of the cube
+    angleX += dy * ROTATION_SENSITIVITY;
+    
+    // Once we have drawn the first frame, turn this off
+    firstFrame = false; 
+  } else {
+    hasJoystickChanged = false;
+  }
+
+  // OPTIMIZATION : Instead of clearing all the screen, 
+  // it just clears the previous frame of the cube (if joystick has moved)
   if (hasJoystickChanged) {
     for (int i = 0; i < cubeEdgesNumber; i++) {
       int start = cubeEdges[i].start;
       int end = cubeEdges[i].end;
 
+      //Clear the cube edges
       clearLine(previousPoints[start].x, previousPoints[start].y,
                 previousPoints[end].x, previousPoints[end].y);
     }
   }
 
+  //Draw the 3d object if joystick has changed
   if (hasJoystickChanged) {
     //Loop and draw the cube vertices
     for (int i = 0; i < cubeVerticesNumber; i++) {
-      Vertex v = cubeVertices[i];
+      Vertex vertex = cubeVertices[i];
 
       // Apply dual-axis rotation
-      v = ProjectionManager::rotate_xz(v, angleY);  // Rotate around Y axis (horizontal stick movement)
-      v = ProjectionManager::rotate_yz(v, angleX);  // Rotate around X axis (vertical stick movement)
+      vertex = ProjectionManager::rotate_xz(vertex, angleY);  // Rotate around Y axis (horizontal stick movement)
+      vertex = ProjectionManager::rotate_yz(vertex, angleX);  // Rotate around X axis (vertical stick movement)
 
       // Getting vertex coordinates for screen
-      currentProjectedPoints[i] = ProjectionManager::getVertexForScreen(v, cwidth, cheight);
+      currentProjectedPoints[i] = ProjectionManager::getVertexForScreen(vertex, cwidth, cheight);
 
       //Draw the Vertex on screen
       //point(currentProjectedPoints[i]);
@@ -155,8 +166,8 @@ void loop() {
 
     //Loop and draw the edges
     for (int i = 0; i < cubeEdgesNumber; i++) {
-      int start = cubeEdges[i].start;
-      int end = cubeEdges[i].end;
+      int start = cubeEdges[i].start; //retrieve the first vertex we want to connect
+      int end = cubeEdges[i].end; //retrieve the second vertex we want to connect iwht
 
       line(currentProjectedPoints[start].x, currentProjectedPoints[start].y,
            currentProjectedPoints[end].x, currentProjectedPoints[end].y);
@@ -167,7 +178,6 @@ void loop() {
       previousPoints[i] = currentProjectedPoints[i];
     }
   }
-
 
   delay(1000 / FPS);
 }
