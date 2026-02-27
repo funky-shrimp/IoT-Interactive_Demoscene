@@ -9,14 +9,15 @@ struct jskValues {
 
 class Joystick {
 private:
-  //un pointeur pour optimiser l'utilisation de la RAM
-  // celui stocke en réalité l'adresse dans la mémoire.
+  //Pointer for RAM optimization
   const int* pins;
 
 public:
+  //Constructor
   Joystick(const int* pinsArray)
     : pins(pinsArray) {}  
 
+  //Returning Joystick state
   jskValues getValue() {
 
     jskValues values;
@@ -27,6 +28,7 @@ public:
     return values;
   }
 
+  //Loging the state of the Joystick
   void log() {
     Serial.print("Button :  ");
     Serial.print(digitalRead(pins[2]));
@@ -40,6 +42,7 @@ public:
     delay(200);
   }
 
+  //Initialize joystick
   void init() {
     Serial.print("Joystick initiated on pins ");
 
