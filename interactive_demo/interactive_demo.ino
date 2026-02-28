@@ -5,10 +5,11 @@
 #include "Joystick.h"
 #include "ProjectionManager.h"
 #include "Cube.h"
+#include "Plasma.h"
 
-#define TFT_CS 10 //for screen
-#define TFT_DC 9  //for screen
-#define TFT_RST 8 //for screen
+#define TFT_CS 10  //for screen
+#define TFT_DC 9   //for screen
+#define TFT_RST 8  //for screen
 
 //https://barth-dev.de/online/rgb565-color-picker/
 //https://learn.adafruit.com/adafruit-gfx-graphics-library/coordinate-system-and-units
@@ -23,7 +24,9 @@ Adafruit_ST7735 screen(TFT_CS, TFT_DC, TFT_RST);
 int cwidth;  //c means canvas / screen
 int cheight;
 
-const int POINT_SIZE = 2; //To draw a "pixel" based on a vertex position
+const int POINT_SIZE = 2;  //To draw a "pixel" based on a vertex position
+
+const int FPS = 24;
 
 /* ------
     Joystick
@@ -37,11 +40,17 @@ const int JOYSTICK_TOLERANCE = 20;        //Because a Joystick is not always per
 
 
 /* ------
-    SCREEN
+    Plasma effect
    ------ 
 */
-const int FPS = 24;
+PlasmaEffect plasma(screen);
 
+/* ------
+    Demos
+   ------ 
+*/
+bool demoSwitch = true;
+int lastButtonState = 1;  // 1 is the "unpressed" state for your pull-up configuration
 
 /* ------
     Cube / 3D object
@@ -85,11 +94,14 @@ void line(int x1, int y1, int x2, int y2) {
 }
 
 void setup() {
-  Serial.begin(9600); //For Serial connection
+  Serial.begin(9600);  //For Serial connection
 
   screen.initR(INITR_144GREENTAB);
   screen.setRotation(0);
   screen.fillScreen(ST77XX_BLACK);  //make the screen black
+
+  plasma.setPalette(FIRE);
+  plasma.setResolution(4);  // 4 for speed, 2 for beauty
 
   cwidth = screen.width();
   cheight = screen.height();
@@ -123,60 +135,89 @@ void loop() {
   //OPTIMIZATION to avoid redrawing the cube if not necessary.
   if (dx != 0 || dy != 0 || firstFrame) {
     hasJoystickChanged = true;
-    
+
     // Only update angles if there is actual movement
-    angleY += dx * ROTATION_SENSITIVITY; //Joystick on joystick's X axis acts on Y axis of the cube
+    angleY += dx * ROTATION_SENSITIVITY;  //Joystick on joystick's X axis acts on Y axis of the cube
     angleX += dy * ROTATION_SENSITIVITY;
-    
+
     // Once we have drawn the first frame, turn this off
-    firstFrame = false; 
+    firstFrame = false;
   } else {
     hasJoystickChanged = false;
   }
 
-  // OPTIMIZATION : Instead of clearing all the screen, 
-  // it just clears the previous frame of the cube (if joystick has moved)
-  if (hasJoystickChanged) {
-    for (int i = 0; i < cubeEdgesNumber; i++) {
-      int start = cubeEdges[i].start;
-      int end = cubeEdges[i].end;
+  // Check if the button was JUST pressed
+  if (joystickValues.btn == 0 && lastButtonState == 1) {
+    demoSwitch = !demoSwitch;
 
-      //Clear the cube edges
-      clearLine(previousPoints[start].x, previousPoints[start].y,
-                previousPoints[end].x, previousPoints[end].y);
-    }
+    // Clear screen when switching to avoid leftover pixels from the other demo
+    screen.fillScreen(ST77XX_BLACK);
   }
 
-  //Draw the 3d object if joystick has changed
-  if (hasJoystickChanged) {
-    //Loop and draw the cube vertices
-    for (int i = 0; i < cubeVerticesNumber; i++) {
-      Vertex vertex = cubeVertices[i];
+  // Update the last state for the next frame
+  lastButtonState = joystickValues.btn;
 
-      // Apply dual-axis rotation
-      vertex = ProjectionManager::rotate_xz(vertex, angleY);  // Rotate around Y axis (horizontal stick movement)
-      vertex = ProjectionManager::rotate_yz(vertex, angleX);  // Rotate around X axis (vertical stick movement)
 
-      // Getting vertex coordinates for screen
-      currentProjectedPoints[i] = ProjectionManager::getVertexForScreen(vertex, cwidth, cheight);
+  if (demoSwitch) {
 
-      //Draw the Vertex on screen
-      //point(currentProjectedPoints[i]);
+    // OPTIMIZATION : Instead of clearing all the screen,
+    // it just clears the previous frame of the cube (if joystick has moved)
+    if (hasJoystickChanged) {
+      for (int i = 0; i < cubeEdgesNumber; i++) {
+        int start = cubeEdges[i].start;
+        int end = cubeEdges[i].end;
+
+        //Clear the cube edges
+        clearLine(previousPoints[start].x, previousPoints[start].y,
+                  previousPoints[end].x, previousPoints[end].y);
+      }
     }
 
-    //Loop and draw the edges
-    for (int i = 0; i < cubeEdgesNumber; i++) {
-      int start = cubeEdges[i].start; //retrieve the first vertex we want to connect
-      int end = cubeEdges[i].end; //retrieve the second vertex we want to connect iwht
+    //Draw the 3d object if joystick has changed
+    if (hasJoystickChanged) {
+      //Loop and draw the cube vertices
+      for (int i = 0; i < cubeVerticesNumber; i++) {
+        Vertex vertex = cubeVertices[i];
 
-      line(currentProjectedPoints[start].x, currentProjectedPoints[start].y,
-           currentProjectedPoints[end].x, currentProjectedPoints[end].y);
+        // Apply dual-axis rotation
+        vertex = ProjectionManager::rotate_xz(vertex, angleY);  // Rotate around Y axis (horizontal stick movement)
+        vertex = ProjectionManager::rotate_yz(vertex, angleX);  // Rotate around X axis (vertical stick movement)
+
+        // Getting vertex coordinates for screen
+        currentProjectedPoints[i] = ProjectionManager::getVertexForScreen(vertex, cwidth, cheight);
+
+        //Draw the Vertex on screen
+        //point(currentProjectedPoints[i]);
+      }
+
+      //Loop and draw the edges
+      for (int i = 0; i < cubeEdgesNumber; i++) {
+        int start = cubeEdges[i].start;  //retrieve the first vertex we want to connect
+        int end = cubeEdges[i].end;      //retrieve the second vertex we want to connect iwht
+
+        line(currentProjectedPoints[start].x, currentProjectedPoints[start].y,
+             currentProjectedPoints[end].x, currentProjectedPoints[end].y);
+      }
+
+      // Update memory for efficient erasing
+      for (int i = 0; i < cubeVerticesNumber; i++) {
+        previousPoints[i] = currentProjectedPoints[i];
+      }
+    }
+  } else {
+    if (abs(dy) > 0.5) {
+      PlasmaPalette palette = (dy > 0) ? FIRE : OCEAN;
+      plasma.setPalette(palette);
+    } else if (abs(dx) > 0.5) {
+      PlasmaPalette palette = (dx > 0) ? ACID : PSYCHEDELIC;
+      plasma.setPalette(palette);
     }
 
-    // Update memory for efficient erasing
-    for (int i = 0; i < cubeVerticesNumber; i++) {
-      previousPoints[i] = currentProjectedPoints[i];
-    }
+    //Because if the cube is static when switching to Plasma Effect
+    // and coming back to Cube, the cube won't be drawn
+    firstFrame = true;
+
+    plasma.update();
   }
 
   delay(1000 / FPS);
