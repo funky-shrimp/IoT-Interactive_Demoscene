@@ -48,17 +48,18 @@ public:
 
     //X
     pinMode(pins[0], INPUT);
-    Serial.print(pins[0]);
+    Serial.print("A"+(String)pins[0]);
     Serial.print(",");
 
     //Y
     pinMode(pins[1], INPUT);
-    Serial.print(pins[1]);
+    Serial.print("A"+(String)pins[1]);
     Serial.print(",");
 
     //Last pin is assumed to be the button
-    pinMode(pins[2], INPUT);
-    digitalWrite(pins[2], HIGH);
+    pinMode(pins[2], INPUT_PULLUP);
+    //digitalWrite(pins[2], HIGH);
+    Serial.println(digitalRead(pins[2]));
     Serial.print(pins[2]);
     Serial.print(",");
 

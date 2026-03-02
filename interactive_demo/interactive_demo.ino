@@ -3,6 +3,7 @@
 #include <Adafruit_ST7735.h>
 
 #include "Joystick.h"
+#include "Potentiometer.h"
 #include "ProjectionManager.h"
 #include "Cube.h"
 #include "Plasma.h"
@@ -32,18 +33,26 @@ const int FPS = 24;
     Joystick
    ------ 
 */
-const int JOYSTICK_PINS[] = { 0, 1, 4 };  // Joystick (analog X, analog Y, digital BTN)
+const int JOYSTICK_PINS[] = { 0, 1, 2 };  // Joystick (analog X, analog Y, digital BTN)
 Joystick joystick(JOYSTICK_PINS);         // Object creation
 jskValues joystickValues;                 // Structure for manipulating the input
 bool hasJoystickChanged = false;          // OPTIMIZATION : we only draw the cube if the Joystick has a movement
 const int JOYSTICK_TOLERANCE = 20;        //Because a Joystick is not always perfectly centered
 
+/* ------
+    Potentiometer
+   ------ 
+*/
+Potentiometer redP(3);    //Red potentiometer on PIN A3
+Potentiometer greenP(4);  //Green potentiometer on PIN A4
+Potentiometer blueP(5);   //Blue potentiometer on PIN A5
 
 /* ------
     Plasma effect
    ------ 
 */
 PlasmaEffect plasma(screen);
+int r, g, b;  // for custom user input
 
 /* ------
     Demos
@@ -101,12 +110,16 @@ void setup() {
   screen.fillScreen(ST77XX_BLACK);  //make the screen black
 
   plasma.setPalette(FIRE);
-  plasma.setResolution(4);  // 4 for speed, 2 for beauty
+  plasma.setResolution(3);  // 4 for speed, 2 for beauty
 
   cwidth = screen.width();
   cheight = screen.height();
 
   joystick.init();
+
+  redP.init();
+  greenP.init();
+  blueP.init();
 }
 
 void loop() {
@@ -159,7 +172,6 @@ void loop() {
 
 
   if (demoSwitch) {
-
     // OPTIMIZATION : Instead of clearing all the screen,
     // it just clears the previous frame of the cube (if joystick has moved)
     if (hasJoystickChanged) {
@@ -175,7 +187,7 @@ void loop() {
 
     //Draw the 3d object if joystick has changed
     if (hasJoystickChanged) {
-      //Loop and draw the cube vertices
+      //Loop and calculate the vertices transformation
       for (int i = 0; i < cubeVerticesNumber; i++) {
         Vertex vertex = cubeVertices[i];
 
@@ -185,9 +197,6 @@ void loop() {
 
         // Getting vertex coordinates for screen
         currentProjectedPoints[i] = ProjectionManager::getVertexForScreen(vertex, cwidth, cheight);
-
-        //Draw the Vertex on screen
-        //point(currentProjectedPoints[i]);
       }
 
       //Loop and draw the edges
@@ -205,6 +214,15 @@ void loop() {
       }
     }
   } else {
+
+    long red = Potentiometer::mapPotValue(redP.getValue());
+    long green = Potentiometer::mapPotValue(greenP.getValue());
+    long blue = Potentiometer::mapPotValue(blueP.getValue());
+
+    if(red || green || blue){
+      plasma.setCustomPalette(red, green, blue);
+    }
+
     if (abs(dy) > 0.5) {
       PlasmaPalette palette = (dy > 0) ? FIRE : OCEAN;
       plasma.setPalette(palette);
@@ -214,7 +232,7 @@ void loop() {
     }
 
     //Because if the cube is static when switching to Plasma Effect
-    // and coming back to Cube, the cube won't be drawn
+    // the cube won't be drawn until the joystick has moved
     firstFrame = true;
 
     plasma.update();
