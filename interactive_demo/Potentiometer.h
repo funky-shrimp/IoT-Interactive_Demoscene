@@ -15,8 +15,8 @@ public:
     return value;
   }
 
-  static long mapPotValue(long value) {
-    return map(value, 0, 1023, 0, 254);
+  static long mapPotValue(long value, long from, long to) {
+    return map(value, 0, 1023, from, to);
   }
 
   void init() {

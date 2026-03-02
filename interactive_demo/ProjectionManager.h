@@ -58,6 +58,18 @@ public:
     return vertex;
   }
 
+  //Translate a vertex along y axis
+  static Vertex translate_y(Vertex vertex, float dy) {
+    vertex.y += dy;
+    return vertex;
+  }
+
+  //Translate a vertex along x axis
+  static Vertex translate_x(Vertex vertex, float dx) {
+    vertex.x += dx;
+    return vertex;
+  }
+
   //Rotate along Y axis
   static Vertex rotate_xz(Vertex vertex, float angle) {
     float c = cos(angle);

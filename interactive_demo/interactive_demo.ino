@@ -43,9 +43,11 @@ const int JOYSTICK_TOLERANCE = 20;        //Because a Joystick is not always per
     Potentiometer
    ------ 
 */
-Potentiometer redP(3);    //Red potentiometer on PIN A3
-Potentiometer greenP(4);  //Green potentiometer on PIN A4
-Potentiometer blueP(5);   //Blue potentiometer on PIN A5
+Potentiometer pot1(3);  //Red potentiometer on PIN A3
+Potentiometer pot2(4);  //Green potentiometer on PIN A4
+Potentiometer pot3(5);  //Blue potentiometer on PIN A5
+
+const byte POT_TOLERANCE = 1;
 
 /* ------
     Plasma effect
@@ -73,13 +75,12 @@ const float ROTATION_SENSITIVITY = 0.3f;
 double angleX = 0;  //for around Y axis
 double angleY = 0;  //for around X axis
 
-
-
 //Clear the screen
 void clear() {
   screen.fillScreen(ST77XX_BLACK);
 }
 
+/*
 // OPTIMIZATION
 // clearPoint is used to clear the point from previous loop
 // so we don't have to clear the screen between each frame
@@ -91,6 +92,7 @@ void clearPoint(int x, int y) {
 void point(PointScreen p) {
   screen.fillRect(p.x - POINT_SIZE / 2, p.y - POINT_SIZE / 2, POINT_SIZE, POINT_SIZE, ST77XX_WHITE);
 }
+*/
 
 // OPTIMIZATION
 // Like clearPoint but for lines
@@ -117,9 +119,9 @@ void setup() {
 
   joystick.init();
 
-  redP.init();
-  greenP.init();
-  blueP.init();
+  pot1.init();
+  pot2.init();
+  pot3.init();
 }
 
 void loop() {
@@ -191,7 +193,7 @@ void loop() {
       for (int i = 0; i < cubeVerticesNumber; i++) {
         Vertex vertex = cubeVertices[i];
 
-        // Apply dual-axis rotation
+        //Apply dual-axis rotation
         vertex = ProjectionManager::rotate_xz(vertex, angleY);  // Rotate around Y axis (horizontal stick movement)
         vertex = ProjectionManager::rotate_yz(vertex, angleX);  // Rotate around X axis (vertical stick movement)
 
@@ -215,11 +217,11 @@ void loop() {
     }
   } else {
 
-    long red = Potentiometer::mapPotValue(redP.getValue());
-    long green = Potentiometer::mapPotValue(greenP.getValue());
-    long blue = Potentiometer::mapPotValue(blueP.getValue());
+    long red = Potentiometer::mapPotValue(pot1.getValue(),0, 254);
+    long green = Potentiometer::mapPotValue(pot2.getValue(),0, 254);
+    long blue = Potentiometer::mapPotValue(pot3.getValue(),0, 254);
 
-    if(red || green || blue){
+    if (red > POT_TOLERANCE || green > POT_TOLERANCE || blue > POT_TOLERANCE) {
       plasma.setCustomPalette(red, green, blue);
     }
 
