@@ -28,7 +28,17 @@ Made with [Fritzing](https://fritzing.org/).
 
 ![](attachment/Interactive_Demo-Wiring.png)
 
-## Messing around
+## Clone this repository
+
+Go to your Arduino project folder, and clone the repository
+
+```
+git clone https://github.com/funky-shrimp/IoT-Interactive_Demoscene.git
+```
+
+Or [download the zip file](https://github.com/funky-shrimp/IoT-Interactive_Demoscene/archive/refs/heads/main.zip) and extract the folder **interactive_demo** into your Arduino project folder *(...\Arduino\interactive_demo)*.
+
+# Messing around
 
 >Press on Joystick button to switch between Demos
 
@@ -38,10 +48,12 @@ The default demo shown when starting is the cube. You can control its rotation o
 
 ### Plasma
 
-When the 3 potentiometers are set to 0, you can switch on different colors presets with Joystick Direction :
+You can switch on different colors presets with Joystick Direction :
 - Fire palette -> UP
-- Ocean palette -> down
-- Acid palette -> left
-- Psychedelic palette -> right
+- Ocean palette -> DOWN
+- Acid palette -> LEFT
+- Psychedelic palette -> RIGHT
 
-You can add your custom palette by playing with the potentiometers dedicated for the colors Red Green and Blue. It requires some fine tuning to have a stable color palette.
+Everytime you choose a preset, the direction of the plasma effect is randomized.
+
+Then you can mess around with those presets by changing the speed (first potentiometer), resolution (second potentiometer) and color intensity (third potentiometer).
