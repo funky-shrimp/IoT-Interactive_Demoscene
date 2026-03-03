@@ -12,15 +12,18 @@ const int8_t sinTable[256] PROGMEM = {
 enum PlasmaPalette { FIRE,
                      OCEAN,
                      ACID,
-                     PSYCHEDELIC, CUSTOM };
+                     PSYCHEDELIC,
+                     CUSTOM };
 
 class PlasmaEffect {
 private:
   Adafruit_ST7735& _tft;
-  uint8_t _frame;
+  uint16_t _frame;
   uint8_t _step;
+  uint8_t _speed;
+  uint8_t _colorIntensity;
   PlasmaPalette _currentPalette;
-  float _rMult = 1.0, _gMult = 1.0, _bMult = 1.0;
+  int8_t _dir1 = 1, _dir2 = -1, _dir3 = 1; // Direction multipliers
 
 public:
   // Constructor
@@ -28,6 +31,8 @@ public:
     : _tft(tft_ref) {
     _frame = 0;
     _step = 4;  // Block size for performance
+    _speed = 4;
+    _colorIntensity = 1;
     _currentPalette = FIRE;
   }
 
@@ -35,26 +40,42 @@ public:
     _currentPalette = p;
   }
 
+  /*
   void setCustomPalette(float r, float g, float b) {
     _currentPalette = CUSTOM;
     _rMult = r;
     _gMult = g;
     _bMult = b;
   }
+*/
+  void randomizeDirections() {
+    _dir1 = (random(0, 2) == 0) ? 1 : -1; // Randomly pick 1 or -1
+    _dir2 = (random(0, 2) == 0) ? 1 : -1;
+    _dir3 = (random(0, 2) == 0) ? 1 : -1;
+  }
 
-  void setResolution(uint8_t s) {
-    _step = s;
+  void setSpeed(uint8_t speed) {
+    _speed = speed;
+    _frame = 0;
+  }
+
+  void setResolution(uint8_t resolution) {
+    _step = resolution;
+  }
+
+  void setColorIntensity(uint8_t colorIntensity) {
+    _colorIntensity = colorIntensity;
   }
 
   void update() {
-    _frame += 4;
+    _frame += _speed;
 
     for (int16_t y = 0; y < 128; y += _step) {
       for (int16_t x = 0; x < 128; x += _step) {
 
-        int8_t v1 = (int8_t)pgm_read_byte(&sinTable[(x * 2 + _frame) & 0xFF]);
-        int8_t v2 = (int8_t)pgm_read_byte(&sinTable[(y * 3 - _frame) & 0xFF]);
-        int8_t v3 = (int8_t)pgm_read_byte(&sinTable[((x + y) + (_frame >> 1)) & 0xFF]);
+        int8_t v1 = (int8_t)pgm_read_byte(&sinTable[(x * 2 + _frame*_dir1) & 0xFF]);
+        int8_t v2 = (int8_t)pgm_read_byte(&sinTable[(y * 3 - _frame*_dir2) & 0xFF]);
+        int8_t v3 = (int8_t)pgm_read_byte(&sinTable[((x + y) + (_frame*_dir3 >> 1)) & 0xFF]);
 
         //index is like the sine wave, the higher the number is
         // higher the color is going to be
@@ -65,6 +86,8 @@ public:
         _tft.fillRect(x, y, _step, _step, color);
       }
     }
+    // Explicit wrap at 512 to keep Wave 3 perfectly seamless
+    if (_frame >= 512) _frame = 0;
   }
 
 private:
@@ -72,29 +95,24 @@ private:
     uint8_t r, g, b;
     switch (_currentPalette) {
       case FIRE:
-        r = i;
-        g = i >> 2;
+        r = i*_colorIntensity;
+        g = i*_colorIntensity >> 2;
         b = 0;
         break;
       case OCEAN:
         r = 0;
-        g = i >> 1;
+        g = i*_colorIntensity >> 1;
         b = i;
         break;
       case ACID:
-        r = 200 - i;
-        g = 254 - i;
-        b = i << 1;  //r = i << 2; g = 255 - i; b = i << 1;
+        r = 200 - i*_colorIntensity;
+        g = 254 - i*_colorIntensity;
+        b = i*_colorIntensity << 1;  //r = i << 2; g = 255 - i; b = i << 1;
         break;
       case PSYCHEDELIC:
-        r = i << 3;
-        g = i << 2;
-        b = i << 1;
-        break;
-      case CUSTOM:
-        r = (uint8_t)(i * _rMult);
-        g = (uint8_t)(i * _gMult);
-        b = (uint8_t)(i * _bMult);
+        r = i*_colorIntensity << 3;
+        g = i*_colorIntensity << 2;
+        b = i*_colorIntensity << 1;
         break;
       default:
         r = g = b = i;

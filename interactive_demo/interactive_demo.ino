@@ -27,7 +27,7 @@ int cheight;
 
 const int POINT_SIZE = 2;  //To draw a "pixel" based on a vertex position
 
-const int FPS = 24;
+const int FPS = 24;  //FPS for the Cube, you can go with 60 for a smoother experience
 
 /* ------
     Joystick
@@ -37,17 +37,21 @@ const int JOYSTICK_PINS[] = { 0, 1, 2 };  // Joystick (analog X, analog Y, digit
 Joystick joystick(JOYSTICK_PINS);         // Object creation
 jskValues joystickValues;                 // Structure for manipulating the input
 bool hasJoystickChanged = false;          // OPTIMIZATION : we only draw the cube if the Joystick has a movement
-const int JOYSTICK_TOLERANCE = 20;        //Because a Joystick is not always perfectly centered
+const int JOYSTICK_TOLERANCE = 20;        // Because a Joystick is not always perfectly centered
 
 /* ------
     Potentiometer
    ------ 
 */
-Potentiometer pot1(3);  //Red potentiometer on PIN A3
-Potentiometer pot2(4);  //Green potentiometer on PIN A4
-Potentiometer pot3(5);  //Blue potentiometer on PIN A5
+Potentiometer pot1(3);  //First potentiometer on PIN A3
+Potentiometer pot2(4);  //Second potentiometer on PIN A4
+Potentiometer pot3(5);  //Third potentiometer on PIN A5
 
-const byte POT_TOLERANCE = 1;
+long pot1LastValue = 0;
+long pot2LastValue = 0;
+long pot3LastValue = 0;
+
+const byte POT_TOLERANCE = 1;  //To avoid noise when Pots are not active
 
 /* ------
     Plasma effect
@@ -217,21 +221,40 @@ void loop() {
     }
   } else {
 
-    long red = Potentiometer::mapPotValue(pot1.getValue(),0, 254);
-    long green = Potentiometer::mapPotValue(pot2.getValue(),0, 254);
-    long blue = Potentiometer::mapPotValue(pot3.getValue(),0, 254);
+    // In your loop() inside interactive_demoscene.cpp
+    int pot1Raw = pot1.getValue();  // Assuming 0 to 1023
+    int pot2Raw = pot2.getValue();  // Assuming 0 to 1023
 
-    if (red > POT_TOLERANCE || green > POT_TOLERANCE || blue > POT_TOLERANCE) {
-      plasma.setCustomPalette(red, green, blue);
+    // Map 0-1023 to a range of 0 to 4 (for 2^0, 2^1, 2^2, 2^3, 2^4)
+    int exponentPot1 = map(pot1Raw, 0, 1023, 0, 4);
+    int exponentPot2 = map(pot2Raw, 0, 1023, 0, 4);
+
+    // Shift 1 left by the exponent to get 1, 2, 4, 8, or 16
+    long speedPot = 1 << exponentPot1;
+    long sizePot = 1 << exponentPot2;
+
+    long colorIntensityPot = Potentiometer::mapPotValue(pot3.getValue(), 1, 10);
+
+    if (speedPot != pot1LastValue || sizePot != pot2LastValue || colorIntensityPot != pot3LastValue) {
+      plasma.setSpeed(speedPot);
+      plasma.setResolution(sizePot);
+      plasma.setColorIntensity(colorIntensityPot);
     }
+
+    pot1LastValue = speedPot;
+    pot2LastValue = sizePot;
+    pot3LastValue = colorIntensityPot;
 
     if (abs(dy) > 0.5) {
       PlasmaPalette palette = (dy > 0) ? FIRE : OCEAN;
       plasma.setPalette(palette);
+      plasma.randomizeDirections();
     } else if (abs(dx) > 0.5) {
       PlasmaPalette palette = (dx > 0) ? ACID : PSYCHEDELIC;
       plasma.setPalette(palette);
+      plasma.randomizeDirections();
     }
+    
 
     //Because if the cube is static when switching to Plasma Effect
     // the cube won't be drawn until the joystick has moved
