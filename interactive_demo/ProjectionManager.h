@@ -1,6 +1,11 @@
 #ifndef PROJECTIONMANAGER_H
 #define PROJECTIONMANAGER_H
 
+/*
+Projection Manager help with drawing 
+a 3D Object into a 2D space.
+*/
+
 // Define a structure to represent a point in 3D space
 struct Vertex {
   float x, y, z;

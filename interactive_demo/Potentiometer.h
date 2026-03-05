@@ -1,6 +1,10 @@
 #ifndef POTENTIOMETER_H
 #define POTENTIOMETER_H
 
+/*
+Simple class for Potentiometer
+*/
+
 class Potentiometer {
 private:
   int pin;

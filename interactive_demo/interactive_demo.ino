@@ -88,34 +88,45 @@ void clear() {
   screen.fillScreen(ST77XX_BLACK);
 }
 
-void clearObjectFrame(){
+void clearObjectFrame() {
   for (int i = 0; i < currentObject->getEdgeCount(); i++) {
-        Edge edge = currentObject->getEdges()[i];
+    Edge edge = currentObject->getEdges()[i];
 
-        int start = edge.start;  //retrieve the first vertex 
-        int end = edge.end;      //retrieve the second vertex
+    int start = edge.start;  //retrieve the first vertex
+    int end = edge.end;      //retrieve the second vertex
 
-        // Use the previousPoints stored inside the object
-        clearLine(currentObject->previousPoints[start].x,
-                  currentObject->previousPoints[start].y,
-                  currentObject->previousPoints[end].x,
-                  currentObject->previousPoints[end].y);
-      }
+    // Use the previousPoints stored inside the object
+    clearLine(currentObject->previousPoints[start].x,
+              currentObject->previousPoints[start].y,
+              currentObject->previousPoints[end].x,
+              currentObject->previousPoints[end].y);
+  }
 }
 
-/*
-// OPTIMIZATION
-// clearPoint is used to clear the point from previous loop
-// so we don't have to clear the screen between each frame
-void clearPoint(int x, int y) {
-  screen.fillRect(x - POINT_SIZE / 2, y - POINT_SIZE / 2, POINT_SIZE, POINT_SIZE, ST77XX_BLACK);
+void calculateObjectTransformation() {
+  for (int i = 0; i < currentObject->getVertexCount(); i++) {
+    Vertex vertex = currentObject->getVertices()[i];
+
+    //Apply dual-axis rotation
+    vertex = ProjectionManager::rotate_xz(vertex, angleY);  // Rotate around Y axis (horizontal stick movement)
+    vertex = ProjectionManager::rotate_yz(vertex, angleX);  // Rotate around X axis (vertical stick movement)
+
+    // Getting vertex coordinates for screen
+    currentObject->currentProjectedPoints[i] = ProjectionManager::getVertexForScreen(vertex, cwidth, cheight);
+  }
 }
 
-//Draw a bigger "pixel" to be easily seen by eye
-void point(PointScreen p) {
-  screen.fillRect(p.x - POINT_SIZE / 2, p.y - POINT_SIZE / 2, POINT_SIZE, POINT_SIZE, ST77XX_WHITE);
+void drawObjectEdges() {
+  for (int i = 0; i < currentObject->getEdgeCount(); i++) {
+    Edge edge = currentObject->getEdges()[i];
+
+    int start = edge.start;  //retrieve the first vertex we want to connect
+    int end = edge.end;      //retrieve the second vertex we want to connect iwht
+
+    line(currentObject->currentProjectedPoints[start].x, currentObject->currentProjectedPoints[start].y,
+         currentObject->currentProjectedPoints[end].x, currentObject->currentProjectedPoints[end].y);
+  }
 }
-*/
 
 // OPTIMIZATION
 // Like clearPoint but for lines
@@ -123,6 +134,7 @@ void clearLine(int x1, int y1, int x2, int y2) {
   screen.drawLine(x1, y1, x2, y2, ST77XX_BLACK);
 }
 
+// Draw a white line
 void line(int x1, int y1, int x2, int y2) {
   screen.drawLine(x1, y1, x2, y2, ST77XX_WHITE);
 }
@@ -178,7 +190,7 @@ void loop() {
     hasJoystickChanged = true;
 
     // Only update angles if there is actual movement
-    angleY += dx * ROTATION_SENSITIVITY;  //Joystick on joystick's X axis acts on Y axis of the cube
+    angleY += dx * ROTATION_SENSITIVITY;  //joystick's X axis acts on Y axis of the cube
     angleX += dy * ROTATION_SENSITIVITY;
 
     // Once we have drawn the first frame, turn this off
@@ -201,56 +213,26 @@ void loop() {
 
   if (demoSwitch) {
     //change 3d object if potentiometer is 1
-    if(map(pot1.getValue(), 0, 1023, 0, 4)>1){
-      currentObject=&myPyramid;
-    }else{
-      currentObject=&myCube;
+    if (map(pot1.getValue(), 0, 1023, 0, 4) > 1) {
+      currentObject = &myPyramid;
+    } else {
+      currentObject = &myCube;
     }
 
 
     // OPTIMIZATION : Instead of clearing all the screen,
     // it just clears the previous frame of the 3d object (if joystick has moved)
     if (hasJoystickChanged) {
-      /*
-      for (int i = 0; i < currentObject->getEdgeCount(); i++) {
-        Edge edge = currentObject->getEdges()[i];
-
-        int start = edge.start;  //retrieve the first vertex 
-        int end = edge.end;      //retrieve the second vertex
-
-        // Use the previousPoints stored inside the object
-        clearLine(currentObject->previousPoints[start].x,
-                  currentObject->previousPoints[start].y,
-                  currentObject->previousPoints[end].x,
-                  currentObject->previousPoints[end].y);
-      }*/
       clearObjectFrame();
     }
 
     //Draw the 3d object if joystick has changed
     if (hasJoystickChanged) {
       //Loop and calculate the vertices transformation
-      for (int i = 0; i < currentObject->getVertexCount(); i++) {
-        Vertex vertex = currentObject->getVertices()[i];
-
-        //Apply dual-axis rotation
-        vertex = ProjectionManager::rotate_xz(vertex, angleY);  // Rotate around Y axis (horizontal stick movement)
-        vertex = ProjectionManager::rotate_yz(vertex, angleX);  // Rotate around X axis (vertical stick movement)
-
-        // Getting vertex coordinates for screen
-        currentObject->currentProjectedPoints[i] = ProjectionManager::getVertexForScreen(vertex, cwidth, cheight);
-      }
+      calculateObjectTransformation();
 
       //Loop and draw the edges
-      for (int i = 0; i < currentObject->getEdgeCount(); i++) {
-        Edge edge = currentObject->getEdges()[i];
-
-        int start = edge.start;  //retrieve the first vertex we want to connect
-        int end = edge.end;      //retrieve the second vertex we want to connect iwht
-
-        line(currentObject->currentProjectedPoints[start].x, currentObject->currentProjectedPoints[start].y,
-             currentObject->currentProjectedPoints[end].x, currentObject->currentProjectedPoints[end].y);
-      }
+      drawObjectEdges();
 
       // Update memory for efficient erasing
       for (int i = 0; i < currentObject->getVertexCount(); i++) {
@@ -259,7 +241,7 @@ void loop() {
     }
   } else {
 
-    // In your loop() inside interactive_demoscene.cpp
+    //Linking potentiometer on speed, resolution and color intensity of Plasma Effect
     int pot1Raw = pot1.getValue();  // Assuming 0 to 1023
     int pot2Raw = pot2.getValue();  // Assuming 0 to 1023
 
@@ -283,6 +265,7 @@ void loop() {
     pot2LastValue = sizePot;
     pot3LastValue = colorIntensityPot;
 
+    //Change color preset on Plasma Effect
     if (abs(dy) > 0.5) {
       PlasmaPalette palette = (dy > 0) ? FIRE : OCEAN;
       plasma.setPalette(palette);
@@ -294,8 +277,8 @@ void loop() {
     }
 
 
-    //Because if the cube is static when switching to Plasma Effect
-    // the cube won't be drawn until the joystick has moved
+    //Because if the 3d object is static when switching to Plasma Effect
+    // the object won't be drawn until the joystick has moved
     firstFrame = true;
 
     plasma.update();

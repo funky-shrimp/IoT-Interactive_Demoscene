@@ -4,6 +4,10 @@
 
 #include "ProjectionManager.h" // Assuming this defines Vertex, etc.
 
+/*
+Parent class to Cube and Pyramid
+*/
+
 // Define the maximum number of vertices any of your shapes will have
 #define MAX_VERTICES 26
 
@@ -13,7 +17,7 @@ public:
     PointScreen currentProjectedPoints[MAX_VERTICES];
     PointScreen previousPoints[MAX_VERTICES];
 
-    //Virtual function that have to be overriden by children
+    //Virtual function that have to be overridden by children
     virtual int getVertexCount() = 0;
     virtual int getEdgeCount() = 0;
     virtual Vertex* getVertices() = 0;

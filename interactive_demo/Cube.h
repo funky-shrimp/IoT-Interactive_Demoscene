@@ -1,6 +1,10 @@
 #ifndef CUBE_H
 #define CUBE_H
 
+/*
+Child class of Object3D, with it's own particularity
+*/
+
 class Cube : public Object3D {
 private:
 Vertex _vertices[8] = {

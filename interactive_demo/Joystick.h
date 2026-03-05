@@ -1,6 +1,10 @@
 #ifndef JOYSTICK_H
 #define JOYSTICK_H
 
+/*
+Simple class for a Joystick
+*/
+
 struct jskValues {
   int x;
   int y;

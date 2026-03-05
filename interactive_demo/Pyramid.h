@@ -1,6 +1,10 @@
 #ifndef PYRAMID_H
 #define PYRAMID_H
 
+/*
+Child class of Object3D, with it's own particularity
+*/
+
 class Pyramid : public Object3D {
 private:
     Vertex _vertices[5] = {
