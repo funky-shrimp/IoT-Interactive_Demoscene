@@ -3,7 +3,7 @@
 
 This is an Arduino Project made during the class "IoT" taught at [HEIG-VD](https://heig-vd.ch/) for Media Engineer.
 
-The purpose of the project was to do Interactive [Demoscenes](https://fr.wikipedia.org/wiki/Sc%C3%A8ne_d%C3%A9mo), where the user can play with a 3D cube and experiment with the Plasma Effect.
+The purpose of the project was to do Interactive [Demoscenes](https://fr.wikipedia.org/wiki/Sc%C3%A8ne_d%C3%A9mo), where the user can play with a 3D Object and experiment with the Plasma Effect.
 
 # Mathematical concepts
 
@@ -42,9 +42,11 @@ Or [download the zip file](https://github.com/funky-shrimp/IoT-Interactive_Demos
 
 >Press on Joystick button to switch between Demos
 
-### Cube
+### 3d Object
 
 The default demo shown when starting is the cube. You can control its rotation on X and Y axis with the Joystick.
+
+You can switch to the Pyramid object by increasing the first potentiometer. There will be some leftovers of the cube frame, you can wipe them by playing rotating the Pyramid.
 
 ### Plasma
 

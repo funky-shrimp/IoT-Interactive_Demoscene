@@ -39,7 +39,6 @@ public:
     Serial.print("Y-axis : ");
     Serial.print(analogRead(pins[1]));
     Serial.println(" | ");
-    delay(200);
   }
 
   //Initialize joystick

@@ -5,7 +5,9 @@
 #include "Joystick.h"
 #include "Potentiometer.h"
 #include "ProjectionManager.h"
+#include "Object3d.h"
 #include "Cube.h"
+#include "Pyramid.h"
 #include "Plasma.h"
 
 #define TFT_CS 10  //for screen
@@ -27,13 +29,13 @@ int cheight;
 
 const int POINT_SIZE = 2;  //To draw a "pixel" based on a vertex position
 
-const int FPS = 24;  //FPS for the Cube, you can go with 60 for a smoother experience
+const int FPS = 60;  //FPS for the Cube, you can go with 60 for a smoother experience
 
 /* ------
     Joystick
    ------ 
 */
-const int JOYSTICK_PINS[] = { 0, 1, 2 };  // Joystick (analog X, analog Y, digital BTN)
+const int JOYSTICK_PINS[] = { 0, 1, 7 };  // Joystick (analog X, analog Y, digital BTN)
 Joystick joystick(JOYSTICK_PINS);         // Object creation
 jskValues joystickValues;                 // Structure for manipulating the input
 bool hasJoystickChanged = false;          // OPTIMIZATION : we only draw the cube if the Joystick has a movement
@@ -68,11 +70,13 @@ bool demoSwitch = true;
 int lastButtonState = 1;  // 1 is the "unpressed" state for your pull-up configuration
 
 /* ------
-    Cube / 3D object
+    3D object
    ------ 
 */
-PointScreen currentProjectedPoints[8];
-PointScreen previousPoints[8];  //OPTIMIZATION : storing previous point of the cube to redraw them
+
+Object3D* currentObject;
+Cube myCube;
+Pyramid myPyramid;
 
 const float ROTATION_SENSITIVITY = 0.3f;
 
@@ -82,6 +86,21 @@ double angleY = 0;  //for around X axis
 //Clear the screen
 void clear() {
   screen.fillScreen(ST77XX_BLACK);
+}
+
+void clearObjectFrame(){
+  for (int i = 0; i < currentObject->getEdgeCount(); i++) {
+        Edge edge = currentObject->getEdges()[i];
+
+        int start = edge.start;  //retrieve the first vertex 
+        int end = edge.end;      //retrieve the second vertex
+
+        // Use the previousPoints stored inside the object
+        clearLine(currentObject->previousPoints[start].x,
+                  currentObject->previousPoints[start].y,
+                  currentObject->previousPoints[end].x,
+                  currentObject->previousPoints[end].y);
+      }
 }
 
 /*
@@ -115,6 +134,8 @@ void setup() {
   screen.setRotation(0);
   screen.fillScreen(ST77XX_BLACK);  //make the screen black
 
+  currentObject = &myCube;
+
   plasma.setPalette(FIRE);
   plasma.setResolution(3);  // 4 for speed, 2 for beauty
 
@@ -135,6 +156,7 @@ void loop() {
 
   // Analog values are 0-1023. Center is ~512.
   joystickValues = joystick.getValue();
+
 
   // We calculate the offset from the center and apply sensitivity.
   float dx = 0;
@@ -178,45 +200,61 @@ void loop() {
 
 
   if (demoSwitch) {
-    // OPTIMIZATION : Instead of clearing all the screen,
-    // it just clears the previous frame of the cube (if joystick has moved)
-    if (hasJoystickChanged) {
-      for (int i = 0; i < cubeEdgesNumber; i++) {
-        int start = cubeEdges[i].start;
-        int end = cubeEdges[i].end;
+    //change 3d object if potentiometer is 1
+    if(map(pot1.getValue(), 0, 1023, 0, 4)>1){
+      currentObject=&myPyramid;
+    }else{
+      currentObject=&myCube;
+    }
 
-        //Clear the cube edges
-        clearLine(previousPoints[start].x, previousPoints[start].y,
-                  previousPoints[end].x, previousPoints[end].y);
-      }
+
+    // OPTIMIZATION : Instead of clearing all the screen,
+    // it just clears the previous frame of the 3d object (if joystick has moved)
+    if (hasJoystickChanged) {
+      /*
+      for (int i = 0; i < currentObject->getEdgeCount(); i++) {
+        Edge edge = currentObject->getEdges()[i];
+
+        int start = edge.start;  //retrieve the first vertex 
+        int end = edge.end;      //retrieve the second vertex
+
+        // Use the previousPoints stored inside the object
+        clearLine(currentObject->previousPoints[start].x,
+                  currentObject->previousPoints[start].y,
+                  currentObject->previousPoints[end].x,
+                  currentObject->previousPoints[end].y);
+      }*/
+      clearObjectFrame();
     }
 
     //Draw the 3d object if joystick has changed
     if (hasJoystickChanged) {
       //Loop and calculate the vertices transformation
-      for (int i = 0; i < cubeVerticesNumber; i++) {
-        Vertex vertex = cubeVertices[i];
+      for (int i = 0; i < currentObject->getVertexCount(); i++) {
+        Vertex vertex = currentObject->getVertices()[i];
 
         //Apply dual-axis rotation
         vertex = ProjectionManager::rotate_xz(vertex, angleY);  // Rotate around Y axis (horizontal stick movement)
         vertex = ProjectionManager::rotate_yz(vertex, angleX);  // Rotate around X axis (vertical stick movement)
 
         // Getting vertex coordinates for screen
-        currentProjectedPoints[i] = ProjectionManager::getVertexForScreen(vertex, cwidth, cheight);
+        currentObject->currentProjectedPoints[i] = ProjectionManager::getVertexForScreen(vertex, cwidth, cheight);
       }
 
       //Loop and draw the edges
-      for (int i = 0; i < cubeEdgesNumber; i++) {
-        int start = cubeEdges[i].start;  //retrieve the first vertex we want to connect
-        int end = cubeEdges[i].end;      //retrieve the second vertex we want to connect iwht
+      for (int i = 0; i < currentObject->getEdgeCount(); i++) {
+        Edge edge = currentObject->getEdges()[i];
 
-        line(currentProjectedPoints[start].x, currentProjectedPoints[start].y,
-             currentProjectedPoints[end].x, currentProjectedPoints[end].y);
+        int start = edge.start;  //retrieve the first vertex we want to connect
+        int end = edge.end;      //retrieve the second vertex we want to connect iwht
+
+        line(currentObject->currentProjectedPoints[start].x, currentObject->currentProjectedPoints[start].y,
+             currentObject->currentProjectedPoints[end].x, currentObject->currentProjectedPoints[end].y);
       }
 
       // Update memory for efficient erasing
-      for (int i = 0; i < cubeVerticesNumber; i++) {
-        previousPoints[i] = currentProjectedPoints[i];
+      for (int i = 0; i < currentObject->getVertexCount(); i++) {
+        currentObject->previousPoints[i] = currentObject->currentProjectedPoints[i];
       }
     }
   } else {
@@ -254,7 +292,7 @@ void loop() {
       plasma.setPalette(palette);
       plasma.randomizeDirections();
     }
-    
+
 
     //Because if the cube is static when switching to Plasma Effect
     // the cube won't be drawn until the joystick has moved

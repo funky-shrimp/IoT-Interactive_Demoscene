@@ -1,10 +1,9 @@
-struct Edge {
-  int start;
-  int end;
-};
+#ifndef CUBE_H
+#define CUBE_H
 
-// 1. Vertices: Fixed-size array (8 corners of a cube)
-const Vertex cubeVertices[8] = {
+class Cube : public Object3D {
+private:
+Vertex _vertices[8] = {
   { 0.25,  0.25,  0.25}, //0
   {-0.25,  0.25,  0.25}, //1
   {-0.25, -0.25,  0.25}, //2
@@ -15,9 +14,7 @@ const Vertex cubeVertices[8] = {
   { 0.25, -0.25, -0.25}  //7
 };
 
-// Array of edges indicating wich Vertices are connected together
-// e.g Vertex 0 is connected to Vertex 1
-const Edge cubeEdges[] = {
+Edge _edges[12] = {
     // Front Face
     {0, 1}, {1, 2}, {2, 3}, {3, 0},
     // Back Face
@@ -26,5 +23,11 @@ const Edge cubeEdges[] = {
     {0, 4}, {1, 5}, {2, 6}, {3, 7}
 };
 
-int cubeVerticesNumber = sizeof(cubeVertices) / sizeof(cubeVertices[0]);
-int cubeEdgesNumber = sizeof(cubeEdges) / sizeof(cubeEdges[0]);
+public:
+    int getVertexCount() override { return 8; }
+    int getEdgeCount() override { return 12; }
+    Vertex* getVertices() override { return _vertices; }
+    Edge* getEdges() override { return _edges; }
+};
+
+#endif

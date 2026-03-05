@@ -10,6 +10,11 @@ struct PointScreen {
   float x, y;
 };
 
+struct Edge {
+  int start;
+  int end;
+};
+
 class ProjectionManager {
 private:
   static const int POINT_SIZE = 2;
