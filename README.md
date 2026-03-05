@@ -5,6 +5,10 @@ This is an Arduino Project made during the class "IoT" taught at [HEIG-VD](https
 
 The purpose of the project was to do Interactive [Demoscenes](https://fr.wikipedia.org/wiki/Sc%C3%A8ne_d%C3%A9mo), where the user can play with a 3D Object and experiment with the Plasma Effect.
 
+# Video
+
+[![Interactive Demo](https://img.youtube.com/vi/8QBSQZ1M7VE/0.jpg)](https://youtu.be/8QBSQZ1M7VE)
+
 # Mathematical concepts
 
 Some mathematical concepts had to be learned in order to comprehend how you get from 3d to 2d. Thanks to [Tsoding Video | One Formula That Demystifies 3D Graphics](https://www.youtube.com/watch?v=qjWkNZ0SXfo&t=531s), the project was easy to achieve.
